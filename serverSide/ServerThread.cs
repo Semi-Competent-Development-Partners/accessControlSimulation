@@ -82,7 +82,7 @@ namespace serverSide {
         private static bool ValidateMessage(string message) {
             string[] validMsgs = { "in", "out" };
 
-            if (message.Split(' ').Length != 2 | !validMsgs.Contains(message.Split(' ')[0]))
+            if (message.Split(' ').Length != 2 | !validMsgs.Contains(message.Split(' ')[0].Trim()))
                 return false;
 
             // out into 'discard' variable (underscore)

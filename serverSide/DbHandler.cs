@@ -60,16 +60,21 @@ namespace serverSide {
 
             // Split the message into its components
             string[] parts = message.Split(' ');
-            string action = parts[0];
-            int id = int.Parse(parts[1]);
+            string action = parts[0].Trim();
+            int id = int.Parse(parts[1].Trim());
             
             // Create Insert query which will insert the userId, the action and the current date into the database
             string query = $"INSERT INTO Entries1 (EmployeeId, EventType, Timestamp) VALUES ({id}, '{action}', GETDATE())";
 
             // Check if the user id exists in the database
-            bool userValid = CheckUserExistsById(id);
-            if (!userValid) {
+            bool userIdValid = ValidEmployeeId(id);
+            bool actionValid = ValidEmployeeAction(id, action);
+            if (!userIdValid) {
                 Console.WriteLine($"User with ID {id} does not exist.");
+                return -1;
+            }
+            if (!actionValid) {
+                Console.WriteLine($"Action for Emloyee ID {id} is not valid.");
                 return -1;
             }
 
@@ -89,7 +94,7 @@ namespace serverSide {
             return result;
         }
 
-        private bool CheckUserExistsById(int id) {
+        private bool ValidEmployeeId(int id) {
             // Create a command to check if the user exists
             string query = $"SELECT COUNT(*) FROM Employees1 WHERE Id = {id}";
             using (DbCommand command = _dbConnection.CreateCommand()) {
@@ -100,6 +105,25 @@ namespace serverSide {
                 }
                 catch (Exception e) {
                     Console.WriteLine($"Error checking user existence: {e.Message}");
+                    return false;
+                }
+            }
+        }
+
+        private bool ValidEmployeeAction(int employeeId, string action) {
+            // Create a command to check the last action of the employee
+            string query = $"SELECT TOP 1 EventType FROM Entries1 WHERE EmployeeId = {employeeId} ORDER BY Timestamp DESC";
+            using (DbCommand command = _dbConnection.CreateCommand()) {
+                command.CommandText = query;
+                try {
+                    string lastAction = (string)command.ExecuteScalar();
+                    lastAction = lastAction == null ? null : lastAction.Trim();
+
+                    // If the last action is null and the current action is "in", return true
+                    return (lastAction != null && action != lastAction) || (lastAction == null && action == "in");
+                }
+                catch (Exception e) {
+                    Console.WriteLine($"Error checking last action: {e.Message}");
                     return false;
                 }
             }
