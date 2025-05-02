@@ -8,6 +8,10 @@ using System.Threading.Tasks;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using Microsoft.AspNet.SignalR;
+using System.Net;
+using Microsoft.AspNet.SignalR.Client;
+using EntryWebFormsApplication1;
 
 namespace serverSide {
     internal class DbHandler {
@@ -91,6 +95,13 @@ namespace serverSide {
                 }
             }
 
+            var timestamp = DateTime.Now;
+            // send web request to https://localhost:44380/api/notify
+            WebRequest request = WebRequest.Create($"https://localhost:44380/api/notify?message={id.ToString() + '+' + action + '+' + timestamp.ToString("dd-MMM-yy HH:mm:ss")}");
+            Console.WriteLine($"web request to: {request.RequestUri}");
+            // Get the response.
+            HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+            Console.WriteLine($"response from web api: ({response.StatusCode})");
             return result;
         }
 
