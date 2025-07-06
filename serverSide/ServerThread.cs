@@ -38,7 +38,7 @@ namespace serverSide {
                     var received = _socket.Receive(buffer);
                     var message = Encoding.UTF8.GetString(buffer, 0, received);
 
-                    if (message == "stop") {
+                    if (message == "stop" || message == "") {
                         // Stop the thread if the message is "stop".
                         Console.WriteLine($"Socket server thread {_value} stopping.");
                         _socket.Shutdown(SocketShutdown.Both);
@@ -63,8 +63,10 @@ namespace serverSide {
         }
 
         private bool HandleMessage(string message) {
-            bool msgIsValid = ValidateMessage(message);
-            if (!msgIsValid) {
+            try {
+                int Id = int.Parse(message);
+            }
+            catch { 
                 Console.WriteLine($"Socket server thread {_value} sent invalid message: \"{message}\"");
                 return false;
             }

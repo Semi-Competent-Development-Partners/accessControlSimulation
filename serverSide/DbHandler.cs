@@ -62,29 +62,25 @@ namespace serverSide {
         public int AddEntry(string message) {
             int result;
 
-            // Split the message into its components
-            string[] parts = message.Split(' ');
-            string action = parts[0].Trim();
-            int id = int.Parse(parts[1].Trim());
-            
-            // Create Insert query which will insert the userId, the action and the current date into the database
-            string query = $"INSERT INTO Entries1 (EmployeeId, EventType, Timestamp) VALUES ({id}, '{action}', GETDATE())";
+            int id = int.Parse(message);
 
-            // Check if the user id exists in the database
-            bool userIdValid = ValidEmployeeId(id);
-            bool actionValid = ValidEmployeeAction(id, action);
-            if (!userIdValid) {
-                Console.WriteLine($"User with ID {id} does not exist.");
+            // Check if employee exists by ISIC ID
+            Employee employee = GetEmployeeByIsic(id);
+            if (employee == null) {
+                Console.WriteLine($"Employee with ISIC ID {id} does not exist.");
                 return -1;
             }
-            if (!actionValid) {
-                Console.WriteLine($"Action for Emloyee ID {id} is not valid.");
-                return -1;
-            }
+
+            string action = NextValidEmployeeAction(employee.Id);
+
+            // Create Insert query which will insert the userId, the action and the current date into the database
+            string query = $"INSERT INTO Entries1 (EmployeeId, EventType, Timestamp) VALUES (@id, @action, GETDATE())";
 
             // Create a command to execute the query
             using (DbCommand command = _dbConnection.CreateCommand()) {
                 command.CommandText = query;
+                command.Parameters.Add(new SqlParameter("@id", employee.Id));
+                command.Parameters.Add(new SqlParameter("@action", action));
                 // Execute the command
                 try {
                     result = command.ExecuteNonQuery();
@@ -121,7 +117,7 @@ namespace serverSide {
             }
         }
 
-        private bool ValidEmployeeAction(int employeeId, string action) {
+        private string NextValidEmployeeAction(int employeeId) {
             // Create a command to check the last action of the employee
             string query = $"SELECT TOP 1 EventType FROM Entries1 WHERE EmployeeId = {employeeId} ORDER BY Timestamp DESC";
             using (DbCommand command = _dbConnection.CreateCommand()) {
@@ -131,13 +127,38 @@ namespace serverSide {
                     lastAction = lastAction == null ? null : lastAction.Trim();
 
                     // If the last action is null and the current action is "in", return true
-                    return (lastAction != null && action != lastAction) || (lastAction == null && action == "in");
+                    return (lastAction == "out" || lastAction == null) ? "in" : "out";
                 }
                 catch (Exception e) {
                     Console.WriteLine($"Error checking last action: {e.Message}");
-                    return false;
+                    return String.Empty;
                 }
             }
+        }
+
+        private Employee GetEmployeeByIsic(int isicId) {
+            // Create a command to get the employee by ISIC ID
+            string query = $"SELECT * FROM Employees1 WHERE ISIC_ID = {isicId}";
+            using (DbCommand command = _dbConnection.CreateCommand()) {
+                command.CommandText = query;
+                try {
+                    using (DbDataReader reader = command.ExecuteReader()) {
+                        if (reader.Read()) {
+                            // Return new Employee object if found
+                            return new Employee(
+                                reader.GetInt32(reader.GetOrdinal("Id")),
+                                reader.GetString(reader.GetOrdinal("FullName")),
+                                reader.GetString(reader.GetOrdinal("Position")),
+                                isicId
+                            );
+                        }
+                    }
+                }
+                catch (Exception e) {
+                    Console.WriteLine($"Error getting employee by ISIC ID: {e.Message}");
+                }
+            }
+            return null; // Return null if no employee found
         }
     }
 }
